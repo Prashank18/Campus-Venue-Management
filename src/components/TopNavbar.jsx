@@ -25,7 +25,7 @@ function NotificationPanel({ bookings, onViewBooking, onClose }) {
   </div>;
 }
 
-function ProfileDropdown({ onOpenProfile, onOpenSettings }) {
+function ProfileDropdown({ onOpenProfile, onOpenSettings, account, accountRole }) {
   const [open, setOpen] = useState(false);
   const closeAndRun = (action) => {
     setOpen(false);
@@ -34,14 +34,15 @@ function ProfileDropdown({ onOpenProfile, onOpenSettings }) {
 
   return <div className="profile-menu-wrap">
     <button className="profile-button" aria-expanded={open} onClick={() => setOpen((value) => !value)}>
-      <span className="avatar avatar-profile">RS</span>
-      <span className="profile-copy"><b>Riya Sharma</b><small>Administrator</small></span>
+      <span className="avatar avatar-profile">{account.name.slice(0, 2).toUpperCase()}</span>
+      <span className="profile-copy"><b>{account.name}</b><small>{accountRole}</small></span>
       <ChevronDown size={14} />
     </button>
     {open && <div className="profile-dropdown">
-      <div className="profile-dropdown-heading"><b>Riya Sharma</b><small>Administrator</small></div>
+      <div className="profile-dropdown-heading"><b>{account.name}</b><small>{accountRole}</small></div>
       <button onClick={() => closeAndRun(onOpenProfile)}>View profile</button>
       <button onClick={() => closeAndRun(onOpenSettings)}>Workspace settings</button>
+      <Link to="/login" onClick={() => sessionStorage.removeItem("campusOSSession")}>Sign out</Link>
     </div>}
   </div>;
 }
@@ -57,6 +58,8 @@ export default function TopNavbar({
   onViewBooking,
   onOpenProfile,
   onOpenSettings,
+  account,
+  accountRole,
 }) {
   const [notificationsOpen, setNotificationsOpen] = useState(false);
 
@@ -87,7 +90,7 @@ export default function TopNavbar({
         />}
       </div>
       <div className="top-divider" />
-      <ProfileDropdown onOpenProfile={onOpenProfile} onOpenSettings={onOpenSettings} />
+      <ProfileDropdown onOpenProfile={onOpenProfile} onOpenSettings={onOpenSettings} account={account} accountRole={accountRole} />
     </div>
   </header>;
 }

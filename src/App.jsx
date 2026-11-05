@@ -15,6 +15,7 @@ import {
   Button, Dialog, DialogActions, DialogContent, DialogTitle, MenuItem, TextField,
 } from "@mui/material";
 import Dashboard from "./pages/Dashboard.jsx";
+import Login from "./pages/Login.jsx";
 import Sidebar from "./components/Sidebar.jsx";
 import TopNavbar from "./components/TopNavbar.jsx";
 import PageTitle from "./components/PageHeader.jsx";
@@ -67,8 +68,17 @@ function Status({ children }) {
   return <span className={`status status-${children.toLowerCase().replaceAll(" ", "-")}`}><i />{children}</span>;
 }
 
+function getCurrentAccount() {
+  try {
+    return JSON.parse(sessionStorage.getItem("campusOSSession") || "null");
+  } catch {
+    return null;
+  }
+}
+
 function App() {
   const location = useLocation();
+  const account = getCurrentAccount();
   const [collapsed, setCollapsed] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
   const [search, setSearch] = useState("");
@@ -127,6 +137,21 @@ function App() {
 
   const shared = { bookings, updateBooking, addBooking, notify, search };
 
+  if (location.pathname.startsWith("/login")) {
+    return <Routes>
+      <Route path="/login" element={<Login />} />
+      <Route path="/login/:role" element={<Login />} />
+      <Route path="*" element={<Navigate to="/login" replace />} />
+    </Routes>;
+  }
+
+  if (!account?.role || !account?.name) {
+    return <Navigate to="/login" replace />;
+  }
+
+  const roleLabels = { administrator: "Administrator", teacher: "Teacher", student: "Student" };
+  const accountRole = roleLabels[account.role] || "Campus member";
+
   return (
     <div className={`app-shell ${collapsed ? "sidebar-collapsed" : ""}`}>
       <Sidebar
@@ -152,6 +177,8 @@ function App() {
           onViewBooking={setSelectedBooking}
           onOpenProfile={() => setProfileOpen(true)}
           onOpenSettings={() => setSettingsOpen(true)}
+          account={account}
+          accountRole={accountRole}
         />
         <MainContent>
           <Routes>
@@ -172,7 +199,7 @@ function App() {
       <Dialog open={campusOpen} onClose={() => setCampusOpen(false)} fullWidth maxWidth="xs"><DialogTitle>Choose campus</DialogTitle><DialogContent><div className="campus-options">{["Main campus", "City campus", "Innovation campus"].map((item) => <button key={item} className={campus === item ? "selected" : ""} onClick={() => { setCampus(item); setCampusOpen(false); }}>{item}{campus === item && <Check size={16} />}</button>)}</div></DialogContent></Dialog>
       <Dialog open={settingsOpen} onClose={() => setSettingsOpen(false)} fullWidth maxWidth="sm"><DialogTitle>Workspace settings</DialogTitle><DialogContent><div className="settings-form"><TextField label="Campus" select defaultValue={campus} onChange={(event) => setCampus(event.target.value)}>{["Main campus", "City campus", "Innovation campus"].map((item) => <MenuItem key={item} value={item}>{item}</MenuItem>)}</TextField><TextField label="Time zone" select defaultValue="Asia/Kolkata"><MenuItem value="Asia/Kolkata">India Standard Time (UTC+5:30)</MenuItem><MenuItem value="UTC">UTC</MenuItem></TextField><p>These preferences are stored for this prototype session only.</p></div></DialogContent><DialogActions><Button onClick={() => setSettingsOpen(false)}>Close</Button><Button variant="contained" onClick={() => { setSettingsOpen(false); notify("Workspace preferences updated."); }}>Save preferences</Button></DialogActions></Dialog>
       <Dialog open={helpOpen} onClose={() => setHelpOpen(false)} fullWidth maxWidth="sm"><DialogTitle>CampusOS help center</DialogTitle><DialogContent><div className="help-topics"><Link to="/timetable" onClick={() => setHelpOpen(false)}><CalendarRange size={18} /><span><b>Timetables</b><small>Filter schedules and manage teaching sessions.</small></span><ArrowRight size={15} /></Link><Link to="/venues" onClick={() => setHelpOpen(false)}><MapPin size={18} /><span><b>Venue bookings</b><small>Find a space, create a request, and track its approval.</small></span><ArrowRight size={15} /></Link><Link to="/conflicts" onClick={() => setHelpOpen(false)}><AlertTriangle size={18} /><span><b>Resolve conflicts</b><small>Review schedule issues and proposed changes.</small></span><ArrowRight size={15} /></Link></div></DialogContent></Dialog>
-      <Dialog open={profileOpen} onClose={() => setProfileOpen(false)} fullWidth maxWidth="xs"><DialogTitle>Administrator profile</DialogTitle><DialogContent><div className="profile-details"><span className="avatar avatar-profile">RS</span><div><b>Riya Sharma</b><small>Campus administrator · {campus}</small></div></div></DialogContent><DialogActions><Button onClick={() => setProfileOpen(false)}>Close</Button><Button variant="outlined" onClick={() => { setProfileOpen(false); setSettingsOpen(true); }}>Workspace settings</Button></DialogActions></Dialog>
+      <Dialog open={profileOpen} onClose={() => setProfileOpen(false)} fullWidth maxWidth="xs"><DialogTitle>{accountRole} profile</DialogTitle><DialogContent><div className="profile-details"><span className="avatar avatar-profile">{account.name.slice(0, 2).toUpperCase()}</span><div><b>{account.name}</b><small>{accountRole} · {campus}</small></div></div></DialogContent><DialogActions><Button onClick={() => setProfileOpen(false)}>Close</Button><Button variant="outlined" onClick={() => { setProfileOpen(false); setSettingsOpen(true); }}>Workspace settings</Button></DialogActions></Dialog>
       <Dialog open={Boolean(selectedBooking)} onClose={() => setSelectedBooking(null)} fullWidth maxWidth="sm"><DialogTitle>Booking request details</DialogTitle>{selectedBooking && <DialogContent><div className="request-detail"><b>{selectedBooking.event}</b><span>{selectedBooking.venue} · {selectedBooking.date} · {selectedBooking.time}</span><span>{selectedBooking.people} participants · Requested by {selectedBooking.owner}</span><Status>{selectedBooking.status}</Status><p>Review the event details and choose the approval queue to make a decision.</p></div></DialogContent>}<DialogActions><Button onClick={() => setSelectedBooking(null)}>Close</Button>{selectedBooking && <Button onClick={() => { setSelectedBooking(null); window.location.assign("/approvals"); }}>Open approvals</Button>}</DialogActions></Dialog>
       {toast && <div className="toast"><CheckCircle2 size={17} />{toast}<button onClick={() => setToast("")}><X size={14} /></button></div>}
     </div>
