@@ -16,6 +16,7 @@ import {
 } from "@mui/material";
 import Dashboard from "./pages/Dashboard.jsx";
 import Login from "./pages/Login.jsx";
+import TimetableManagement from "./pages/TimetableManagement.jsx";
 import Sidebar from "./components/Sidebar.jsx";
 import TopNavbar from "./components/TopNavbar.jsx";
 import PageTitle from "./components/PageHeader.jsx";
@@ -26,7 +27,7 @@ const navGroups = [
     title: "Workspace",
     items: [
       { to: "/", label: "Overview", icon: LayoutDashboard },
-      { to: "/timetable", label: "Timetable", icon: CalendarRange, count: "2" },
+      { to: "/timetable", label: "Timetable Management", icon: CalendarRange, count: "2" },
       { to: "/exams", label: "Exams", icon: BookOpen },
       { to: "/venues", label: "Venues & bookings", icon: MapPin },
     ],
@@ -183,7 +184,7 @@ function App() {
         <MainContent>
           <Routes>
             <Route path="/" element={<Dashboard bookings={bookings} notify={notify} search={search} onQuickAdd={() => setQuickAddOpen(true)} onViewBooking={setSelectedBooking} />} />
-            <Route path="/timetable" element={<Timetable {...shared} />} />
+            <Route path="/timetable" element={<TimetableManagement {...shared} />} />
             <Route path="/exams" element={<Exams {...shared} />} />
             <Route path="/venues" element={<Venues {...shared} />} />
             <Route path="/approvals" element={<Approvals {...shared} />} />
@@ -337,70 +338,6 @@ function FilterBar({ children }) {
   </div>;
 }
 function SelectFilter({ label, values }) { return <TextField className="filter-select" select size="small" defaultValue={values[0]} label={label}>{values.map((value) => <MenuItem key={value} value={value}>{value}</MenuItem>)}</TextField>; }
-
-function Timetable({ notify }) {
-  const [mode, setMode] = useState("Weekly");
-  const [week, setWeek] = useState(0);
-  const [sessions, setSessions] = useState(() => schedule.map((day) => ({ ...day, items: day.items.map((item) => ({ ...item })) })));
-  const [sessionDialog, setSessionDialog] = useState(false);
-  const [editing, setEditing] = useState(null);
-  const [sessionForm, setSessionForm] = useState({ day: "Monday", title: "", time: "09:00", room: "", type: "green" });
-  function openSessionDialog(dayIndex = 0, itemIndex = null) {
-    const item = itemIndex === null ? null : sessions[dayIndex].items[itemIndex];
-    setEditing(item ? { dayIndex, itemIndex } : null);
-    setSessionForm(item
-      ? { day: sessions[dayIndex].day, title: item.title, time: item.time, room: item.room, type: item.color }
-      : { day: sessions[dayIndex]?.day || "Monday", title: "", time: "09:00", room: "", type: "green" });
-    setSessionDialog(true);
-  }
-  function saveSession() {
-    if (!sessionForm.title.trim() || !sessionForm.room.trim()) {
-      notify("Add a session title and classroom first.");
-      return;
-    }
-    const targetDay = sessions.findIndex((day) => day.day === sessionForm.day);
-    const item = { time: sessionForm.time, title: sessionForm.title.trim(), meta: "CS · Sem 3 · 80 students", room: sessionForm.room.trim(), color: sessionForm.type };
-    setSessions((current) => {
-      const next = current.map((day) => ({ ...day, items: [...day.items] }));
-      if (editing) {
-        next[editing.dayIndex].items.splice(editing.itemIndex, 1);
-      }
-      const destination = next[targetDay];
-      destination.items.push(item);
-      destination.items.sort((left, right) => left.time.localeCompare(right.time));
-      return next;
-    });
-    setSessionDialog(false);
-    notify(editing ? "Session updated." : "Session added to the timetable.");
-  }
-  function deleteSession() {
-    setSessions((current) => current.map((day, index) => index === editing.dayIndex
-      ? { ...day, items: day.items.filter((_, itemIndex) => itemIndex !== editing.itemIndex) }
-      : day));
-    setSessionDialog(false);
-    notify("Session removed from the timetable.");
-  }
-  return <>
-    <PageTitle eyebrow="ACADEMIC PLANNING" title="Timetable" subtitle="A clear view of teaching, labs, and everything in between." action={<Button variant="contained" startIcon={<Plus size={17} />} onClick={() => openSessionDialog()}>Add session</Button>} />
-    <FilterBar><SelectFilter label="Branch" values={["All branches", "Computer Science", "Electronics", "Design"]} /><SelectFilter label="Year" values={["All years", "Year 1", "Year 2", "Year 3", "Year 4"]} /><SelectFilter label="Semester" values={["Semester 3", "Semester 5", "Semester 7"]} /><SelectFilter label="Section" values={["All sections", "Section A", "Section B"]} /><SelectFilter label="View by" values={["Student group", "Faculty", "Classroom"]} /></FilterBar>
-    <div className="schedule-toolbar"><div className="week-control"><button className="icon-button mini" onClick={() => setWeek(week - 1)}><ChevronLeft size={17} /></button><b>{week === 0 ? "Nov 9 – 13, 2026" : week > 0 ? "Nov 16 – 20, 2026" : "Nov 2 – 6, 2026"}</b><button className="icon-button mini" onClick={() => setWeek(week + 1)}><ChevronRight size={17} /></button><button className="today-button" onClick={() => setWeek(0)}>Today</button></div><div className="toolbar-right"><div className="segmented-control">{["Weekly", "Daily"].map((item) => <button key={item} className={mode === item ? "selected" : ""} onClick={() => setMode(item)}>{item}</button>)}</div><button className="export-button" onClick={() => notify("Timetable export prepared.")}><Download size={15} /> Export</button></div></div>
-    <div className="session-legend">{["Lecture", "Tutorial", "Practical lab"].map((item, index) => <span key={item}><i className={`legend-block legend-${index}`} />{item}</span>)}<span className="conflict-legend"><AlertTriangle size={14} /> Conflict detected</span></div>
-    <div className={`timetable-grid ${mode === "Daily" ? "daily-mode" : ""}`}><div className="time-column"><div className="day-head time-head">GMT+5:30</div>{["08:00", "09:00", "10:00", "11:00", "12:00", "13:00", "14:00", "15:00", "16:00"].map((time) => <div key={time} className="time-label">{time}</div>)}</div>{sessions.map((day, dayIndex) => <div className="day-column" key={day.day}><div className="day-head"><span>{day.day.slice(0, 3)}</span><b className={day.day === "Thursday" ? "current-day" : ""}>{week === 0 ? day.date : String(Number(day.date) + week * 7).padStart(2, "0")}</b></div><div className="day-sessions">{day.items.map((item, index) => <div key={`${item.title}-${item.time}-${index}`} className={`session-card session-${item.color} ${day.day === "Wednesday" && index === 0 ? "has-conflict" : ""}`} style={{ top: `${(Number(item.time.slice(0, 2)) - 8) * 62 + 6}px`, height: "92px" }}><span className="session-clock">{item.time}</span><b>{item.title}</b><small>{item.meta}</small><span className="session-room"><MapPin size={11} />{item.room}</span><button className="session-edit" aria-label={`Edit ${item.title}`} onClick={() => openSessionDialog(dayIndex, index)}><Pencil size={11} /></button>{day.day === "Wednesday" && index === 0 && <AlertTriangle className="session-alert" size={14} />}</div>)}</div></div>)}</div>
-    <div className="schedule-note"><AlertTriangle size={16} /><span><b>1 timetable conflict</b> found in this view. Room B-204 is double-booked on Wednesday at 10:00 AM.</span><Link to="/conflicts">Review conflict <ArrowRight size={14} /></Link></div>
-    <div className="below-grid"><article className="panel simple-panel"><h2>Session types</h2><div className="type-row"><span><i className="legend-block legend-0" />Lecture</span><b>84</b></div><div className="type-row"><span><i className="legend-block legend-1" />Tutorial</span><b>26</b></div><div className="type-row"><span><i className="legend-block legend-2" />Practical labs</span><b>16</b></div></article><article className="panel simple-panel"><h2>Quick actions</h2><button className="quick-action" onClick={() => notify("Conflict scan complete. 1 issue needs review.")}><AlertTriangle size={16} />Run conflict check<ArrowRight size={14} /></button><button className="quick-action" onClick={() => notify("Timetable published to student groups.")}><CheckCircle2 size={16} />Publish timetable<ArrowRight size={14} /></button></article></div>
-    <Dialog open={sessionDialog} onClose={() => setSessionDialog(false)} fullWidth maxWidth="sm">
-      <DialogTitle>{editing ? "Edit session" : "Add timetable session"}</DialogTitle>
-      <DialogContent><div className="dialog-fields">
-        <TextField label="Session title" value={sessionForm.title} onChange={(event) => setSessionForm({ ...sessionForm, title: event.target.value })} fullWidth />
-        <TextField label="Day" select value={sessionForm.day} onChange={(event) => setSessionForm({ ...sessionForm, day: event.target.value })} fullWidth>{sessions.map((day) => <MenuItem key={day.day} value={day.day}>{day.day}</MenuItem>)}</TextField>
-        <TextField label="Start time" type="time" value={sessionForm.time} onChange={(event) => setSessionForm({ ...sessionForm, time: event.target.value })} fullWidth InputLabelProps={{ shrink: true }} />
-        <TextField label="Classroom" value={sessionForm.room} onChange={(event) => setSessionForm({ ...sessionForm, room: event.target.value })} fullWidth placeholder="e.g. B-204" />
-        <TextField label="Session type" select value={sessionForm.type} onChange={(event) => setSessionForm({ ...sessionForm, type: event.target.value })} fullWidth><MenuItem value="green">Lecture</MenuItem><MenuItem value="orange">Tutorial</MenuItem><MenuItem value="blue">Practical lab</MenuItem><MenuItem value="purple">Other</MenuItem></TextField>
-      </div></DialogContent>
-      <DialogActions>{editing && <Button color="error" startIcon={<Trash2 size={15} />} onClick={deleteSession}>Delete session</Button>}<Button onClick={() => setSessionDialog(false)}>Cancel</Button><Button variant="contained" onClick={saveSession}>{editing ? "Save changes" : "Add session"}</Button></DialogActions>
-    </Dialog>
-  </>;
-}
 
 function Exams({ notify }) {
   const [view, setView] = useState("Table");
